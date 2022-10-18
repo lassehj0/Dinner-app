@@ -4,9 +4,14 @@ import cheerio from 'cheerio';
 import './App.css';
 
 function App() {
+	type recipe = {
+		name: string;
+		ingredients: string[];
+	};
+
 	const AxiosInstance = axios.create();
-	const [names, setNames] = useState<string[]>(() => []);
 	const [url, setUrl] = useState('https://www.valdemarsro.dk/opskrifter/');
+	const [recipes, setRecipes] = useState<recipe[]>(() => []);
 
 	useEffect(() => {
 		console.log(url);
@@ -18,10 +23,31 @@ function App() {
 				const nextPageLink = $('.pagenav-new > div > a');
 
 				statsTable.each((i, elem) => {
-					var name: string = $(elem).text();
-					const index: number = name.indexOf('-');
-					name = index !== -1 ? name.substring(0, index) : name;
-					setNames((prevNames) => [...prevNames, name]);
+					var recipeName: string = $(elem).text();
+					const index: number = recipeName.indexOf('-');
+					recipeName =
+						index !== -1 ? recipeName.substring(0, index) : recipeName;
+
+					var dishPageLink = $(elem).attr('href')!;
+					const tempAxiosInstance = axios.create();
+					tempAxiosInstance
+						.get(dishPageLink)
+						.then((resp) => {
+							const dishHtml = resp.data;
+							const $ = cheerio.load(dishHtml);
+							const ingredientlist = $('.ingredientlist > li');
+							var ingredientArr: string[] = new Array();
+
+							ingredientlist.each((i, eleme) => {
+								ingredientArr.push($(eleme).text());
+							});
+
+							setRecipes((prevRecipes) => [
+								...prevRecipes,
+								{ name: recipeName, ingredients: ingredientArr },
+							]);
+						})
+						.catch(console.error);
 				});
 
 				if (nextPageLink)
@@ -36,11 +62,22 @@ function App() {
 	return (
 		<>
 			<ul className='list'>
-				{names.map((element, index) => {
+				{recipes.map((elem, index) => {
 					return (
-						<div className='list-item' id={'Recipe nr.' + index} key={index}>
-							<li>{element}</li>
-						</div>
+						<>
+							<li className='list-item' id={'Recipe nr.' + index} key={index}>
+								{elem.name}
+							</li>
+							<ul>
+								{elem.ingredients.map((eleme, i) => {
+									return (
+										<li className='list-item' id={'Recipe nr.' + index}>
+											{eleme}
+										</li>
+									);
+								})}
+							</ul>
+						</>
 					);
 				})}
 			</ul>
